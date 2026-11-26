@@ -1,138 +1,233 @@
 
+
 <!DOCTYPE html>
 <html>
 <head>
-<title>Car Racing Game</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ultimate Car Racing</title>
 <style>
-body {
-    background: #222;
-    text-align: center;
-    color: white;
-    font-family: Arial;
+*{box-sizing:border-box}
+body{
+ margin:0;background:#101820;color:white;
+ font-family:Arial;text-align:center;overflow:hidden
 }
-
-h1 {
-    color: yellow;
+h2{margin:8px;color:#00eaff}
+#game{
+ width:100%;max-width:500px;height:80vh;
+ max-height:750px;background:#333;
+ display:block;margin:auto;border:3px solid white
 }
-
-#game {
-    width: 300px;
-    height: 450px;
-    background: #555;
-    margin: auto;
-    position: relative;
-    overflow: hidden;
-    border: 4px solid white;
+#info{display:flex;justify-content:space-around;padding:8px}
+button{
+ padding:13px 22px;margin:5px;border:0;
+ border-radius:12px;background:#00cfff;
+ font-weight:bold;font-size:16px
 }
-
-#player {
-    position: absolute;
-    bottom: 20px;
-    left: 125px;
-    font-size: 40px;
-}
-
-#enemy {
-    position: absolute;
-    top: -50px;
-    left: 60px;
-    font-size: 40px;
-}
-
-button {
-    padding: 12px 25px;
-    font-size: 18px;
-    margin: 10px;
-    cursor: pointer;
-}
+.controls{display:flex;justify-content:center;gap:25px}
 </style>
 </head>
-
 <body>
 
-<h1>🏎️ Car Racing Game</h1>
-<h2>Score: <span id="score">0</span></h2>
+<h2>🏎️ ULTIMATE CAR RACING</h2>
 
-<div id="game">
-    <div id="player">🚗</div>
-    <div id="enemy">🚙</div>
+<div id="info">
+ <span>Score: <b id="score">0</b></span>
+ <span>Coins: <b id="coins">0</b></span>
+ <span>Speed: <b id="speed">1</b></span>
 </div>
 
-<button onclick="moveLeft()">⬅️ Left</button>
-<button onclick="moveRight()">Right ➡️</button>
-<button onclick="restart()">Restart</button>
+<canvas id="game" width="400" height="650"></canvas>
+
+<div class="controls">
+ <button id="left">⬅ LEFT</button>
+ <button id="nitro">⚡ NITRO</button>
+ <button id="right">RIGHT ➡</button>
+</div>
+
+<button onclick="restart()">🔄 RESTART</button>
+<button onclick="togglePause()">⏸ PAUSE</button>
 
 <script>
-let player = document.getElementById("player");
-let enemy = document.getElementById("enemy");
-let scoreText = document.getElementById("score");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
-let x = 125;
-let enemyY = -50;
-let enemyX = 60;
-let score = 0;
-let gameOver = false;
+let player={x:180,y:530,w:42,h:75};
+let enemies=[],money=[],score=0,coins=0;
+let speed=4,frame=0,gameOver=false,paused=false;
+let nitro=false;
 
-function moveLeft() {
-    if (x > 10 && !gameOver) {
-        x -= 25;
-        player.style.left = x + "px";
-    }
+const lanes=[75,180,285];
+
+function car(x,y,color){
+ ctx.fillStyle=color;
+ ctx.fillRect(x,y,42,75);
+ ctx.fillStyle="#bceeff";
+ ctx.fillRect(x+7,y+10,28,18);
+ ctx.fillStyle="#111";
+ ctx.fillRect(x+5,y+57,32,12);
+ ctx.fillStyle="#ffff99";
+ ctx.fillRect(x+5,y+2,8,5);
+ ctx.fillRect(x+29,y+2,8,5);
 }
 
-function moveRight() {
-    if (x < 250 && !gameOver) {
-        x += 25;
-        player.style.left = x + "px";
-    }
+function road(){
+ ctx.fillStyle="#247b35";
+ ctx.fillRect(0,0,400,650);
+
+ ctx.fillStyle="#303030";
+ ctx.fillRect(35,0,330,650);
+
+ ctx.fillStyle="white";
+ ctx.fillRect(35,0,5,650);
+ ctx.fillRect(360,0,5,650);
+
+ for(let y=-50;y<700;y+=100){
+  let p=(y+frame*speed)%100;
+  ctx.fillRect(143,p,5,48);
+  ctx.fillRect(252,p,5,48);
+ }
 }
 
-document.addEventListener("keydown", function(e) {
-    if (e.key === "ArrowLeft") moveLeft();
-    if (e.key === "ArrowRight") moveRight();
+function drawCoins(){
+ money.forEach(c=>{
+  ctx.fillStyle="gold";
+  ctx.beginPath();
+  ctx.arc(c.x,c.y,12,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle="#9b6400";
+  ctx.font="bold 14px Arial";
+  ctx.fillText("$",c.x-4,c.y+5);
+ });
+}
+
+function collision(a,b){
+ return a.x<b.x+b.w && a.x+a.w>b.x &&
+ a.y<b.y+b.h && a.y+a.h>b.y;
+}
+
+function update(){
+ if(gameOver||paused)return;
+
+ frame++;
+ score++;
+ speed=Math.min(12,4+score/1500);
+
+ player.x=Math.max(43,Math.min(315,player.x));
+ 
+ if(frame%65===0){
+  let lane=lanes[Math.floor(Math.random()*3)];
+  enemies.push({x:lane,y:-80,w:42,h:75});
+ }
+
+ if(frame%110===0){
+  money.push({x:lanes[Math.floor(Math.random()*3)]+21,y:-20});
+ }
+
+ enemies.forEach(e=>e.y+=speed+(nitro?3:0));
+ money.forEach(c=>c.y+=speed);
+
+ enemies=enemies.filter(e=>e.y<700);
+ money=money.filter(c=>c.y<700);
+
+ for(let e of enemies){
+  if(collision(player,e))gameOver=true;
+ }
+
+ money=money.filter(c=>{
+  let hit=Math.hypot(player.x+21-c.x,player.y+35-c.y)<32;
+  if(hit)coins++;
+  return !hit;
+ });
+
+ document.getElementById("score").innerText=score;
+ document.getElementById("coins").innerText=coins;
+ document.getElementById("speed").innerText=
+  Math.floor(speed);
+}
+
+function draw(){
+ road();
+
+ enemies.forEach(e=>car(e.x,e.y,"#ff3333"));
+ drawCoins();
+ car(player.x,player.y,"#00cfff");
+
+ if(nitro){
+  ctx.fillStyle="orange";
+  ctx.fillRect(player.x+12,player.y+75,8,20);
+  ctx.fillRect(player.x+24,player.y+75,8,20);
+ }
+
+ if(gameOver){
+  ctx.fillStyle="rgba(0,0,0,.8)";
+  ctx.fillRect(0,0,400,650);
+  ctx.fillStyle="white";
+  ctx.font="bold 38px Arial";
+  ctx.fillText("GAME OVER",75,280);
+  ctx.font="20px Arial";
+  ctx.fillText("Score: "+score,145,330);
+  ctx.fillText("Press RESTART",125,375);
+ }
+
+ if(paused&&!gameOver){
+  ctx.fillStyle="rgba(0,0,0,.6)";
+  ctx.fillRect(0,0,400,650);
+  ctx.fillStyle="white";
+  ctx.font="40px Arial";
+  ctx.fillText("PAUSED",130,330);
+ }
+}
+
+function loop(){
+ update();
+ draw();
+ requestAnimationFrame(loop);
+}
+
+function restart(){
+ player.x=180;
+ enemies=[];
+ money=[];
+ score=0;
+ coins=0;
+ speed=4;
+ frame=0;
+ gameOver=false;
+ paused=false;
+ nitro=false;
+}
+
+function togglePause(){
+ if(!gameOver)paused=!paused;
+}
+
+function moveLeft(){player.x-=55}
+function moveRight(){player.x+=55}
+
+document.getElementById("left").onpointerdown=moveLeft;
+document.getElementById("right").onpointerdown=moveRight;
+
+document.getElementById("nitro").onpointerdown=()=>{
+ nitro=true;
+};
+document.getElementById("nitro").onpointerup=()=>{
+ nitro=false;
+};
+document.getElementById("nitro").onpointerleave=()=>{
+ nitro=false;
+};
+
+document.addEventListener("keydown",e=>{
+ if(e.key==="ArrowLeft"||e.key==="a")moveLeft();
+ if(e.key==="ArrowRight"||e.key==="d")moveRight();
+ if(e.code==="Space")nitro=true;
+ if(e.key==="p")togglePause();
+});
+document.addEventListener("keyup",e=>{
+ if(e.code==="Space")nitro=false;
 });
 
-function play() {
-    if (gameOver) return;
-
-    enemyY += 5;
-    enemy.style.top = enemyY + "px";
-
-    if (enemyY > 450) {
-        enemyY = -50;
-        enemyX = Math.floor(Math.random() * 250);
-        enemy.style.left = enemyX + "px";
-        score++;
-        scoreText.innerText = score;
-    }
-
-    if (
-        enemyY > 360 &&
-        enemyY < 420 &&
-        Math.abs(x - enemyX) < 35
-    ) {
-        gameOver = true;
-        alert("Game Over! Your Score: " + score);
-    }
-
-    requestAnimationFrame(play);
-}
-
-function restart() {
-    x = 125;
-    enemyY = -50;
-    score = 0;
-    gameOver = false;
-
-    player.style.left = x + "px";
-    enemy.style.top = enemyY + "px";
-    scoreText.innerText = score;
-
-    play();
-}
-
-play();
+loop();
 </script>
-
 </body>
 </html>
