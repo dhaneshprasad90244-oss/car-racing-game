@@ -1,0 +1,138 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Car Racing Game</title>
+<style>
+body {
+    background: #222;
+    text-align: center;
+    color: white;
+    font-family: Arial;
+}
+
+h1 {
+    color: yellow;
+}
+
+#game {
+    width: 300px;
+    height: 450px;
+    background: #555;
+    margin: auto;
+    position: relative;
+    overflow: hidden;
+    border: 4px solid white;
+}
+
+#player {
+    position: absolute;
+    bottom: 20px;
+    left: 125px;
+    font-size: 40px;
+}
+
+#enemy {
+    position: absolute;
+    top: -50px;
+    left: 60px;
+    font-size: 40px;
+}
+
+button {
+    padding: 12px 25px;
+    font-size: 18px;
+    margin: 10px;
+    cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🏎️ Car Racing Game</h1>
+<h2>Score: <span id="score">0</span></h2>
+
+<div id="game">
+    <div id="player">🚗</div>
+    <div id="enemy">🚙</div>
+</div>
+
+<button onclick="moveLeft()">⬅️ Left</button>
+<button onclick="moveRight()">Right ➡️</button>
+<button onclick="restart()">Restart</button>
+
+<script>
+let player = document.getElementById("player");
+let enemy = document.getElementById("enemy");
+let scoreText = document.getElementById("score");
+
+let x = 125;
+let enemyY = -50;
+let enemyX = 60;
+let score = 0;
+let gameOver = false;
+
+function moveLeft() {
+    if (x > 10 && !gameOver) {
+        x -= 25;
+        player.style.left = x + "px";
+    }
+}
+
+function moveRight() {
+    if (x < 250 && !gameOver) {
+        x += 25;
+        player.style.left = x + "px";
+    }
+}
+
+document.addEventListener("keydown", function(e) {
+    if (e.key === "ArrowLeft") moveLeft();
+    if (e.key === "ArrowRight") moveRight();
+});
+
+function play() {
+    if (gameOver) return;
+
+    enemyY += 5;
+    enemy.style.top = enemyY + "px";
+
+    if (enemyY > 450) {
+        enemyY = -50;
+        enemyX = Math.floor(Math.random() * 250);
+        enemy.style.left = enemyX + "px";
+        score++;
+        scoreText.innerText = score;
+    }
+
+    if (
+        enemyY > 360 &&
+        enemyY < 420 &&
+        Math.abs(x - enemyX) < 35
+    ) {
+        gameOver = true;
+        alert("Game Over! Your Score: " + score);
+    }
+
+    requestAnimationFrame(play);
+}
+
+function restart() {
+    x = 125;
+    enemyY = -50;
+    score = 0;
+    gameOver = false;
+
+    player.style.left = x + "px";
+    enemy.style.top = enemyY + "px";
+    scoreText.innerText = score;
+
+    play();
+}
+
+play();
+</script>
+
+</body>
+</html>
