@@ -1,233 +1,815 @@
 
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ultimate Car Racing</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#07111f">
+<title>Ultimate Racing Pro</title>
+
 <style>
 *{box-sizing:border-box}
 body{
- margin:0;background:#101820;color:white;
- font-family:Arial;text-align:center;overflow:hidden
+ margin:0;background:#07111f;color:white;
+ font-family:Arial,sans-serif;text-align:center;
+ overflow-x:hidden;touch-action:pan-y;
 }
-h2{margin:8px;color:#00eaff}
-#game{
- width:100%;max-width:500px;height:80vh;
- max-height:750px;background:#333;
- display:block;margin:auto;border:3px solid white
+header{
+ padding:10px;background:#101e32;
+ border-bottom:2px solid #00d9ff;
 }
-#info{display:flex;justify-content:space-around;padding:8px}
+h1{margin:0;color:#00eaff;font-size:25px}
+#stats{
+ display:flex;justify-content:space-around;
+ gap:5px;padding:10px 3px;font-weight:bold;
+ font-size:14px;
+}
+.stat{
+ background:#14253b;padding:9px 12px;
+ border-radius:9px;min-width:65px;
+}
+#gameWrap{
+ position:relative;width:min(96vw,440px);
+ margin:auto;
+}
+canvas{
+ width:100%;height:auto;display:block;
+ background:#222;border:2px solid #00d9ff;
+ border-radius:12px;touch-action:none;
+}
+#overlay{
+ position:absolute;inset:0;
+ display:flex;align-items:center;justify-content:center;
+ background:#000b;border-radius:12px;
+ padding:15px;
+}
+.panel{
+ background:#102139;border:2px solid #00d9ff;
+ border-radius:18px;padding:22px 15px;
+ width:100%;max-width:340px;
+ box-shadow:0 0 25px #00d9ff55;
+}
+.panel h2{color:#00eaff;margin-top:0}
+.panel p{line-height:1.5}
 button{
- padding:13px 22px;margin:5px;border:0;
- border-radius:12px;background:#00cfff;
- font-weight:bold;font-size:16px
+ border:0;border-radius:11px;
+ padding:12px 15px;margin:4px;
+ background:#00d9ff;color:#00111c;
+ font-size:15px;font-weight:bold;
+ cursor:pointer;
 }
-.controls{display:flex;justify-content:center;gap:25px}
+button:active{transform:scale(.94)}
+.secondary{background:#263d58;color:white}
+.orange{background:#ff9b00;color:#171000}
+.red{background:#ff4242;color:white}
+.controls{
+ display:flex;justify-content:center;
+ align-items:center;gap:12px;
+ margin:10px auto;flex-wrap:wrap;
+}
+.control{
+ min-width:75px;min-height:55px;
+ font-size:19px;
+ touch-action:none;
+}
+#nitro{background:#ff9b00}
+#message{color:#a9c9e8;font-size:12px}
+.hidden{display:none!important}
+footer{padding:10px;color:#8daac6;font-size:12px}
+@media(max-height:700px){
+ header{padding:5px}
+ h1{font-size:20px}
+ #stats{padding:5px}
+ .controls{margin:4px}
+ .control{min-height:43px}
+}
 </style>
 </head>
+
 <body>
 
-<h2>🏎️ ULTIMATE CAR RACING</h2>
+<header>
+<h1>🏎️ ULTIMATE RACING PRO</h1>
+</header>
 
-<div id="info">
- <span>Score: <b id="score">0</b></span>
- <span>Coins: <b id="coins">0</b></span>
- <span>Speed: <b id="speed">1</b></span>
+<div id="stats">
+ <div class="stat">🏆 <span id="score">0</span></div>
+ <div class="stat">🪙 <span id="coins">0</span></div>
+ <div class="stat">⭐ <span id="best">0</span></div>
+ <div class="stat">LEVEL <span id="level">1</span></div>
 </div>
 
-<canvas id="game" width="400" height="650"></canvas>
+<div id="gameWrap">
+<canvas id="game" width="420" height="720"></canvas>
+
+<div id="overlay">
+ <div class="panel">
+  <h2 id="title">🏁 RACING PRO</h2>
+  <p id="description">Ready to race? Avoid traffic, collect coins and use nitro!</p>
+  <button id="mainBtn">▶ START GAME</button>
+  <br>
+  <button class="secondary" id="garageBtn">🚘 GARAGE</button>
+  <button class="secondary" id="soundBtn">🔊 SOUND ON</button>
+  <br>
+  <button class="secondary" id="fullBtn">⛶ FULLSCREEN</button>
+ </div>
+</div>
+</div>
 
 <div class="controls">
- <button id="left">⬅ LEFT</button>
- <button id="nitro">⚡ NITRO</button>
- <button id="right">RIGHT ➡</button>
+ <button class="control" id="left">⬅</button>
+ <button class="control" id="nitro">⚡ NITRO</button>
+ <button class="control" id="right">➡</button>
 </div>
 
-<button onclick="restart()">🔄 RESTART</button>
-<button onclick="togglePause()">⏸ PAUSE</button>
+<div class="controls">
+ <button class="secondary" id="pauseBtn">⏸ PAUSE</button>
+ <button class="secondary" id="restartBtn">🔄 RESTART</button>
+</div>
+
+<p id="message">
+ PC: Arrow Keys / WASD | Mobile: Touch buttons or swipe
+</p>
+
+<footer>ULTIMATE RACING PRO • Browser Edition</footer>
 
 <script>
+// ==================================
+// 1. GAME SETTINGS
+// ==================================
+
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 
-let player={x:180,y:530,w:42,h:75};
-let enemies=[],money=[],score=0,coins=0;
-let speed=4,frame=0,gameOver=false,paused=false;
+const W=420,H=720;
+const lanes=[105,210,315];
+
+let state="menu";
+let lastTime=0;
+let frame=0;
+let roadOffset=0;
+
+let score=0;
+let runCoins=0;
+let speed=5;
+let level=1;
 let nitro=false;
+let nitroFuel=100;
+let soundOn=true;
 
-const lanes=[75,180,285];
+let enemies=[];
+let coins=[];
+let particles=[];
 
-function car(x,y,color){
- ctx.fillStyle=color;
- ctx.fillRect(x,y,42,75);
- ctx.fillStyle="#bceeff";
- ctx.fillRect(x+7,y+10,28,18);
- ctx.fillStyle="#111";
- ctx.fillRect(x+5,y+57,32,12);
- ctx.fillStyle="#ffff99";
- ctx.fillRect(x+5,y+2,8,5);
- ctx.fillRect(x+29,y+2,8,5);
+let best=load("best",0);
+let wallet=load("wallet",0);
+let selectedCar=load("selectedCar",0);
+
+const cars=[
+ {name:"BLUE RACER",color:"#00cfff",price:0},
+ {name:"RED FURY",color:"#ff3030",price:100},
+ {name:"GOLDEN X",color:"#ffbf00",price:250}
+];
+
+let unlocked=load("unlocked",[true,false,false]);
+
+let player={
+ x:210,y:575,lane:1,w:36,h:68
+};
+
+// ==================================
+// 2. STORAGE
+// ==================================
+
+function load(key,fallback){
+ try{
+  const value=localStorage.getItem("racing_"+key);
+  return value===null?fallback:JSON.parse(value);
+ }catch(e){return fallback}
 }
 
-function road(){
- ctx.fillStyle="#247b35";
- ctx.fillRect(0,0,400,650);
+function save(key,value){
+ try{
+  localStorage.setItem("racing_"+key,JSON.stringify(value));
+ }catch(e){}
+}
 
- ctx.fillStyle="#303030";
- ctx.fillRect(35,0,330,650);
+function updateStats(){
+ document.getElementById("score").textContent=score;
+ document.getElementById("coins").textContent=wallet+runCoins;
+ document.getElementById("best").textContent=best;
+ document.getElementById("level").textContent=level;
+}
 
- ctx.fillStyle="white";
- ctx.fillRect(35,0,5,650);
- ctx.fillRect(360,0,5,650);
+// ==================================
+// 3. SOUND SYSTEM
+// ==================================
 
- for(let y=-50;y<700;y+=100){
-  let p=(y+frame*speed)%100;
-  ctx.fillRect(143,p,5,48);
-  ctx.fillRect(252,p,5,48);
+let audio=null;
+
+function beep(freq=500,duration=.08){
+ if(!soundOn)return;
+ try{
+  audio=audio||new(window.AudioContext||window.webkitAudioContext)();
+  if(audio.state==="suspended")audio.resume();
+
+  const osc=audio.createOscillator();
+  const gain=audio.createGain();
+
+  osc.type="square";
+  osc.frequency.value=freq;
+  gain.gain.value=.04;
+
+  osc.connect(gain);
+  gain.connect(audio.destination);
+
+  osc.start();
+  gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);
+  osc.stop(audio.currentTime+duration);
+ }catch(e){}
+}
+
+// ==================================
+// 4. DRAW ROAD
+// ==================================
+
+function drawRoad(){
+ ctx.fillStyle="#17652c";
+ ctx.fillRect(0,0,W,H);
+
+ ctx.fillStyle="#292d34";
+ ctx.fillRect(40,0,340,H);
+
+ ctx.fillStyle="#eeeeee";
+ ctx.fillRect(40,0,5,H);
+ ctx.fillRect(375,0,5,H);
+
+ for(let y=-100;y<H+100;y+=100){
+  let p=(y+roadOffset)%100;
+
+  ctx.fillStyle="#e9e9e9";
+  ctx.fillRect(150,p,5,48);
+  ctx.fillRect(260,p,5,48);
+ }
+
+ // Roadside lights
+ for(let y=-50;y<H+50;y+=120){
+  let p=(y+roadOffset*1.3)%120;
+  ctx.fillStyle="#00eaff";
+  ctx.fillRect(20,p,5,15);
+  ctx.fillRect(395,p,5,15);
  }
 }
 
-function drawCoins(){
- money.forEach(c=>{
-  ctx.fillStyle="gold";
-  ctx.beginPath();
-  ctx.arc(c.x,c.y,12,0,Math.PI*2);
-  ctx.fill();
-  ctx.fillStyle="#9b6400";
-  ctx.font="bold 14px Arial";
-  ctx.fillText("$",c.x-4,c.y+5);
- });
+// ==================================
+// 5. DRAW CARS
+// ==================================
+
+function drawCar(x,y,color,enemy=false){
+ ctx.save();
+ ctx.translate(x,y);
+
+ // Wheels
+ ctx.fillStyle="#050505";
+ ctx.fillRect(-23,-24,8,19);
+ ctx.fillRect(15,-24,8,19);
+ ctx.fillRect(-23,9,8,19);
+ ctx.fillRect(15,9,8,19);
+
+ // Car body
+ ctx.fillStyle=color;
+ ctx.beginPath();
+ ctx.roundRect(-18,-34,36,68,8);
+ ctx.fill();
+
+ // Windows
+ ctx.fillStyle="#a7edff";
+ ctx.fillRect(-12,-22,24,15);
+ ctx.fillRect(-12,8,24,12);
+
+ // Headlights / tail lights
+ ctx.fillStyle=enemy?"#ff3030":"#fff2a0";
+ ctx.fillRect(-14,-33,7,4);
+ ctx.fillRect(7,-33,7,4);
+
+ ctx.restore();
 }
+
+// ==================================
+// 6. COINS
+// ==================================
+
+function drawCoin(c){
+ ctx.beginPath();
+ ctx.arc(c.x,c.y,12,0,Math.PI*2);
+ ctx.fillStyle="#ffc400";
+ ctx.fill();
+
+ ctx.lineWidth=3;
+ ctx.strokeStyle="#fff0a0";
+ ctx.stroke();
+
+ ctx.fillStyle="#765000";
+ ctx.font="bold 15px Arial";
+ ctx.fillText("$",c.x-5,c.y+5);
+}
+
+// ==================================
+// 7. PARTICLES
+// ==================================
+
+function createParticles(x,y){
+ for(let i=0;i<14;i++){
+  particles.push({
+   x,y,
+   vx:(Math.random()-.5)*7,
+   vy:(Math.random()-.5)*7,
+   life:35
+  });
+ }
+}
+
+function drawParticles(){
+ particles.forEach(p=>{
+  ctx.globalAlpha=p.life/35;
+  ctx.fillStyle="#ff9b00";
+  ctx.fillRect(p.x,p.y,5,5);
+  p.x+=p.vx;
+  p.y+=p.vy;
+  p.life--;
+ });
+ ctx.globalAlpha=1;
+ particles=particles.filter(p=>p.life>0);
+}
+
+// ==================================
+// 8. SPAWN TRAFFIC
+// ==================================
+
+function spawnTraffic(){
+ if(frame%65===0){
+  let lane=Math.floor(Math.random()*3);
+
+  enemies.push({
+   x:lanes[lane],
+   y:-65,
+   color:["#ff3434","#ff8900","#a34cff","#eeeeee"][
+    Math.floor(Math.random()*4)
+   ]
+  });
+ }
+
+ if(frame%95===0){
+  let lane=Math.floor(Math.random()*3);
+
+  coins.push({
+   x:lanes[lane],
+   y:-20
+  });
+ }
+}
+
+// ==================================
+// 9. COLLISION
+// ==================================
 
 function collision(a,b){
- return a.x<b.x+b.w && a.x+a.w>b.x &&
- a.y<b.y+b.h && a.y+a.h>b.y;
+ return Math.abs(a.x-b.x)<29 &&
+        Math.abs(a.y-b.y)<46;
 }
 
-function update(){
- if(gameOver||paused)return;
+// ==================================
+// 10. GAME UPDATE
+// ==================================
+
+function update(dt){
+ if(state!=="playing")return;
 
  frame++;
- score++;
- speed=Math.min(12,4+score/1500);
 
- player.x=Math.max(43,Math.min(315,player.x));
- 
- if(frame%65===0){
-  let lane=lanes[Math.floor(Math.random()*3)];
-  enemies.push({x:lane,y:-80,w:42,h:75});
+ const multiplier=dt/16.67;
+ speed=Math.min(13,5+score/1300);
+ level=Math.floor(score/500)+1;
+
+ let boost=nitro&&nitroFuel>0;
+
+ if(boost){
+  nitroFuel=Math.max(0,nitroFuel-.13*multiplier);
+ }else{
+  nitroFuel=Math.min(100,nitroFuel+.035*multiplier);
  }
 
- if(frame%110===0){
-  money.push({x:lanes[Math.floor(Math.random()*3)]+21,y:-20});
- }
+ let actualSpeed=speed*(boost?1.7:1);
 
- enemies.forEach(e=>e.y+=speed+(nitro?3:0));
- money.forEach(c=>c.y+=speed);
+ roadOffset=(roadOffset+actualSpeed*multiplier)%100;
 
- enemies=enemies.filter(e=>e.y<700);
- money=money.filter(c=>c.y<700);
+ player.x+=(lanes[player.lane]-player.x)*Math.min(1,.22*multiplier);
 
- for(let e of enemies){
-  if(collision(player,e))gameOver=true;
- }
+ spawnTraffic();
 
- money=money.filter(c=>{
-  let hit=Math.hypot(player.x+21-c.x,player.y+35-c.y)<32;
-  if(hit)coins++;
-  return !hit;
+ enemies.forEach(e=>{
+  e.y+=actualSpeed*multiplier;
  });
 
- document.getElementById("score").innerText=score;
- document.getElementById("coins").innerText=coins;
- document.getElementById("speed").innerText=
-  Math.floor(speed);
+ coins.forEach(c=>{
+  c.y+=actualSpeed*multiplier;
+ });
+
+ // Enemy collision
+ for(const e of enemies){
+  if(collision(player,e)){
+   createParticles(player.x,player.y);
+   beep(120,.4);
+   endGame();
+   break;
+  }
+ }
+
+ // Coin collection
+ coins=coins.filter(c=>{
+  if(collision(player,c)){
+   runCoins++;
+   beep(850,.08);
+   return false;
+  }
+  return c.y<H+30;
+ });
+
+ enemies=enemies.filter(e=>e.y<H+80);
+
+ particles.forEach(p=>{
+  p.x+=p.vx;
+  p.y+=p.vy;
+  p.life--;
+ });
+ particles=particles.filter(p=>p.life>0);
+
+ score+=Math.max(1,Math.floor(actualSpeed*multiplier/3));
+
+ if(score>best){
+  best=score;
+  save("best",best);
+ }
+
+ updateStats();
 }
+
+// ==================================
+// 11. DRAW GAME
+// ==================================
 
 function draw(){
- road();
+ ctx.clearRect(0,0,W,H);
 
- enemies.forEach(e=>car(e.x,e.y,"#ff3333"));
- drawCoins();
- car(player.x,player.y,"#00cfff");
+ drawRoad();
 
- if(nitro){
-  ctx.fillStyle="orange";
-  ctx.fillRect(player.x+12,player.y+75,8,20);
-  ctx.fillRect(player.x+24,player.y+75,8,20);
+ coins.forEach(drawCoin);
+
+ enemies.forEach(e=>{
+  drawCar(e.x,e.y,e.color,true);
+ });
+
+ // Nitro flame
+ if(nitro&&nitroFuel>0&&state==="playing"){
+  ctx.fillStyle="#ff8c00";
+  ctx.beginPath();
+  ctx.moveTo(player.x-9,player.y+30);
+  ctx.lineTo(player.x,player.y+60+Math.random()*10);
+  ctx.lineTo(player.x+9,player.y+30);
+  ctx.fill();
  }
 
- if(gameOver){
-  ctx.fillStyle="rgba(0,0,0,.8)";
-  ctx.fillRect(0,0,400,650);
-  ctx.fillStyle="white";
-  ctx.font="bold 38px Arial";
-  ctx.fillText("GAME OVER",75,280);
-  ctx.font="20px Arial";
-  ctx.fillText("Score: "+score,145,330);
-  ctx.fillText("Press RESTART",125,375);
- }
+ drawCar(player.x,player.y,cars[selectedCar].color);
+ drawParticles();
 
- if(paused&&!gameOver){
-  ctx.fillStyle="rgba(0,0,0,.6)";
-  ctx.fillRect(0,0,400,650);
-  ctx.fillStyle="white";
-  ctx.font="40px Arial";
-  ctx.fillText("PAUSED",130,330);
- }
+ // Nitro bar
+ ctx.fillStyle="#111";
+ ctx.fillRect(20,15,110,12);
+ ctx.fillStyle="#ff9b00";
+ ctx.fillRect(20,15,110*nitroFuel/100,12);
+
+ ctx.fillStyle="white";
+ ctx.font="12px Arial";
+ ctx.fillText("NITRO",20,42);
 }
 
-function loop(){
- update();
+// ==================================
+// 12. MAIN GAME LOOP
+// ==================================
+
+function loop(time){
+ let dt=Math.min(time-lastTime,40)||16.67;
+ lastTime=time;
+
+ update(dt);
  draw();
+
  requestAnimationFrame(loop);
 }
 
-function restart(){
- player.x=180;
- enemies=[];
- money=[];
- score=0;
- coins=0;
- speed=4;
- frame=0;
- gameOver=false;
- paused=false;
- nitro=false;
+// ==================================
+// 13. MOVEMENT
+// ==================================
+
+function moveLeft(){
+ if(state!=="playing")return;
+ if(player.lane>0){
+  player.lane--;
+  beep(400,.04);
+ }
 }
 
-function togglePause(){
- if(!gameOver)paused=!paused;
+function moveRight(){
+ if(state!=="playing")return;
+ if(player.lane<2){
+  player.lane++;
+  beep(400,.04);
+ }
 }
 
-function moveLeft(){player.x-=55}
-function moveRight(){player.x+=55}
+// ==================================
+// 14. BUTTON CONTROLS
+// ==================================
 
-document.getElementById("left").onpointerdown=moveLeft;
-document.getElementById("right").onpointerdown=moveRight;
+function bindPress(id,callback){
+ const button=document.getElementById(id);
 
-document.getElementById("nitro").onpointerdown=()=>{
+ button.addEventListener("pointerdown",e=>{
+  e.preventDefault();
+  callback();
+ });
+}
+
+bindPress("left",moveLeft);
+bindPress("right",moveRight);
+
+const nitroButton=document.getElementById("nitro");
+
+nitroButton.addEventListener("pointerdown",e=>{
+ e.preventDefault();
  nitro=true;
-};
-document.getElementById("nitro").onpointerup=()=>{
- nitro=false;
-};
-document.getElementById("nitro").onpointerleave=()=>{
- nitro=false;
-};
+});
+
+["pointerup","pointercancel","pointerleave"].forEach(event=>{
+ nitroButton.addEventListener(event,()=>{
+  nitro=false;
+ });
+});
+
+// ==================================
+// 15. PC KEYBOARD
+// ==================================
 
 document.addEventListener("keydown",e=>{
- if(e.key==="ArrowLeft"||e.key==="a")moveLeft();
- if(e.key==="ArrowRight"||e.key==="d")moveRight();
- if(e.code==="Space")nitro=true;
- if(e.key==="p")togglePause();
-});
-document.addEventListener("keyup",e=>{
- if(e.code==="Space")nitro=false;
+ const key=e.key.toLowerCase();
+
+ if(["arrowleft","arrowright"," "].includes(key)){
+  e.preventDefault();
+ }
+
+ if(key==="arrowleft"||key==="a")moveLeft();
+ if(key==="arrowright"||key==="d")moveRight();
+ if(key===" ")nitro=true;
+ if(key==="p")togglePause();
+ if(key==="escape"&&state==="playing")togglePause();
 });
 
-loop();
+document.addEventListener("keyup",e=>{
+ if(e.key===" ")nitro=false;
+});
+
+// ==================================
+// 16. MOBILE SWIPE
+// ==================================
+
+let touchX=0;
+
+canvas.addEventListener("pointerdown",e=>{
+ touchX=e.clientX;
+});
+
+canvas.addEventListener("pointerup",e=>{
+ const diff=e.clientX-touchX;
+
+ if(Math.abs(diff)>25){
+  if(diff<0)moveLeft();
+  else moveRight();
+ }
+});
+
+// ==================================
+// 17. START GAME
+// ==================================
+
+function startGame(){
+ score=0;
+ runCoins=0;
+ speed=5;
+ level=1;
+ frame=0;
+ roadOffset=0;
+ enemies=[];
+ coins=[];
+ particles=[];
+ nitro=false;
+ nitroFuel=100;
+
+ player={
+  x:210,y:575,lane:1,w:36,h:68
+ };
+
+ state="playing";
+ document.getElementById("overlay").classList.add("hidden");
+
+ updateStats();
+ beep(700,.1);
+}
+
+// ==================================
+// 18. GAME OVER
+// ==================================
+
+function endGame(){
+ if(state!=="playing")return;
+
+ state="over";
+ nitro=false;
+
+ wallet+=runCoins;
+ save("wallet",wallet);
+
+ document.getElementById("title").textContent="💥 GAME OVER";
+ document.getElementById("description").textContent=
+  "Score: "+score+" | Coins earned: "+runCoins;
+
+ document.getElementById("mainBtn").textContent="🔄 PLAY AGAIN";
+ document.getElementById("garageBtn").classList.remove("hidden");
+ document.getElementById("overlay").classList.remove("hidden");
+
+ updateStats();
+}
+
+// ==================================
+// 19. PAUSE AND RESUME
+// ==================================
+
+function togglePause(){
+ if(state==="playing"){
+  state="paused";
+  nitro=false;
+
+  document.getElementById("title").textContent="⏸ PAUSED";
+  document.getElementById("description").textContent="Take a break!";
+  document.getElementById("mainBtn").textContent="▶ RESUME";
+  document.getElementById("garageBtn").classList.add("hidden");
+  document.getElementById("overlay").classList.remove("hidden");
+ }
+ else if(state==="paused"){
+  state="playing";
+  document.getElementById("overlay").classList.add("hidden");
+ }
+}
+
+// ==================================
+// 20. RESTART
+// ==================================
+
+function restartGame(){
+ startGame();
+}
+
+// ==================================
+// 21. GARAGE
+// ==================================
+
+function garage(){
+ state="garage";
+
+ const panel=document.querySelector(".panel");
+
+ document.getElementById("title").textContent="🚘 CAR GARAGE";
+
+ let html="<p>Wallet: 🪙 "+wallet+"</p>";
+
+ cars.forEach((car,i)=>{
+  html+="<p><b style='color:"+car.color+"'>"+car.name+
+  "</b><br>";
+
+  if(unlocked[i]){
+   html+=i===selectedCar?
+    "✓ SELECTED":
+    '<button onclick="selectCar('+i+')">SELECT</button>';
+  }else{
+   html+='<button class="orange" onclick="buyCar('+i+')">BUY 🪙 '+car.price+'</button>';
+  }
+  html+="</p>";
+ });
+
+ html+='<button onclick="backFromGarage()">BACK</button>';
+
+ panel.innerHTML=
+  '<h2>🚘 CAR GARAGE</h2>'+html;
+ document.getElementById("overlay").classList.remove("hidden");
+}
+
+function selectCar(i){
+ if(unlocked[i]){
+  selectedCar=i;
+  save("selectedCar",i);
+  garage();
+ }
+}
+
+function buyCar(i){
+ if(!unlocked[i]&&wallet>=cars[i].price){
+  wallet-=cars[i].price;
+  unlocked[i]=true;
+  save("wallet",wallet);
+  save("unlocked",unlocked);
+  selectedCar=i;
+  save("selectedCar",i);
+  beep(900,.15);
+  garage();
+ }else{
+  alert("Not enough coins!");
+ }
+}
+
+function backFromGarage(){
+ showMenu();
+}
+
+// ==================================
+// 22. MAIN MENU
+// ==================================
+
+function showMenu(){
+ state="menu";
+
+ document.querySelector(".panel").innerHTML=`
+ <h2>🏁 RACING PRO</h2>
+ <p>Ready to race? Avoid traffic, collect coins and use nitro!</p>
+ <button onclick="startGame()">▶ START GAME</button>
+ <br>
+ <button class="secondary" onclick="garage()">🚘 GARAGE</button>
+ <button class="secondary" onclick="toggleSound()">🔊 SOUND</button>
+ <br>
+ <button class="secondary" onclick="fullScreen()">⛶ FULLSCREEN</button>
+ `;
+ document.getElementById("overlay").classList.remove("hidden");
+}
+
+// ==================================
+// 23. SOUND BUTTON
+// ==================================
+
+function toggleSound(){
+ soundOn=!soundOn;
+ document.getElementById("soundBtn").textContent=
+  soundOn?"🔊 SOUND ON":"🔇 SOUND OFF";
+}
+
+// ==================================
+// 24. FULLSCREEN
+// ==================================
+
+function fullScreen(){
+ const el=document.documentElement;
+
+ if(!document.fullscreenElement){
+  if(el.requestFullscreen)el.requestFullscreen().catch(()=>{});
+ }else{
+  document.exitFullscreen();
+ }
+}
+
+// ==================================
+// 25. BUTTON CONNECTIONS
+// ==================================
+
+document.getElementById("mainBtn").onclick=()=>{
+ if(state==="menu"||state==="over")startGame();
+ else if(state==="paused")togglePause();
+};
+
+document.getElementById("garageBtn").onclick=garage;
+
+document.getElementById("pauseBtn").onclick=togglePause;
+document.getElementById("restartBtn").onclick=restartGame;
+
+document.getElementById("soundBtn").onclick=toggleSound;
+document.getElementById("fullBtn").onclick=fullScreen;
+
+// ==================================
+// 26. INITIALIZATION
+// ==================================
+
+updateStats();
+showMenu();
+requestAnimationFrame(loop);
+
 </script>
 </body>
 </html>
+
+
